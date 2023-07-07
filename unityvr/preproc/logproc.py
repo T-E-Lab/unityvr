@@ -16,6 +16,7 @@ dtDfCols = ['frame','time','dt']
 nidDfCols = ['frame','time','dt','pdsig','imgfsig']
 texDfCols = ['frame','time','xtex','ytex']
 vidDfCols = ['frame','time','img','duration']
+stmDfCols = ['frame', 'time', 'azimuth', 'elevation', 'round', 'rotSpeed']
 # Data class definition
 
 @dataclass
@@ -33,6 +34,7 @@ class unityVRexperiment:
     nidDf: pd.DataFrame = pd.DataFrame(columns=nidDfCols)
     texDf: pd.DataFrame = pd.DataFrame(columns=texDfCols)
     vidDf: pd.DataFrame = pd.DataFrame(columns=vidDfCols)
+    stmDf: pd.DataFrame = pd.DataFrame(columns=stmDfCols)
     shapeDf: pd.DataFrame = pd.DataFrame()
     timeDf: pd.DataFrame = pd.DataFrame()
 
@@ -69,6 +71,7 @@ class unityVRexperiment:
         self.nidDf.to_csv(sep.join([savepath,'nidDf.csv']))
         self.texDf.to_csv(sep.join([savepath,'texDf.csv']))
         self.vidDf.to_csv(sep.join([savepath,'vidDf.csv']))
+        self.stmDf.to_csv(sep.join([savepath,'stmDf.csv']))
         self.shapeDf.to_csv(sep.join([savepath,'shapeDf.csv']))
         self.timeDf.to_csv(sep.join([savepath,'timeDf.csv']))
 
@@ -102,14 +105,17 @@ def convertJsonToPandas(dirName,fileName,saveDir, computePDtrace):
     del ftDf 
     nidDf.to_csv(sep.join([savepath,'nidDf.csv']))
     del nidDf 
+    stmDf = stmDfFromLog(dat)
+    stmDf.to_csv(sep.join([savepath,'stmDf.csv']))
+    del stmDf
 
     # construct and save texture dataframes
     texDf = texDfFromLog(dat)
     vidDf = vidDfFromLog(dat)
     texDf.to_csv(sep.join([savepath,'texDf.csv']))
-    del texDf 
+    del texDf
     vidDf.to_csv(sep.join([savepath,'vidDf.csv']))
-    del vidDf 
+    del vidDf
 
     return savepath
 
@@ -121,10 +127,12 @@ def constructUnityVRexperiment(dirName,fileName):
     metadat = makeMetaDict(dat, fileName)
     objDf = objDfFromLog(dat)
     posDf, ftDf, nidDf = timeseriesDfFromLog(dat, computePDtrace=True)
+    stmDf = stmDfFromLog(dat)
     texDf = texDfFromLog(dat)
     vidDf = vidDfFromLog(dat)
 
-    uvrexperiment = unityVRexperiment(metadata=metadat,posDf=posDf,ftDf=ftDf,nidDf=nidDf,objDf=objDf,texDf=texDf, vidDf=vidDf)
+    uvrexperiment = unityVRexperiment(metadata=metadat, posDf=posDf, ftDf=ftDf, nidDf=nidDf,
+                                      objDf=objDf, stmDf=stmDf, texDf=texDf, vidDf=vidDf)
 
     return uvrexperiment
 
@@ -146,7 +154,7 @@ def loadUVRData(savepath):
     try: vidDf = pd.read_csv(sep.join([savepath,'vidDf.csv'])).drop(columns=['Unnamed: 0'])
     except FileNotFoundError:
         vidDf = pd.DataFrame()
-        #No static images were displayed, fill with empty DataFrame
+        #No static images were displayed. Fill with empty DataFrame
 
     try: shapeDf = pd.read_csv(sep.join([savepath,'shapeDf.csv'])).drop(columns=['Unnamed: 0'])
     except FileNotFoundError:
@@ -163,8 +171,13 @@ def loadUVRData(savepath):
         nidDf = pd.DataFrame()
         #Nidaq dataframe may not have been extracted from the raw data due to memory/time constraints
 
-    uvrexperiment = unityVRexperiment(metadata=metadat,posDf=posDf,ftDf=ftDf,nidDf=nidDf,\
-                                      objDf=objDf,texDf=texDf,shapeDf=shapeDf,timeDf=timeDf, vidDf=vidDf)
+    try: stmDf = pd.read_csv(sep.join([savepath, 'stmDf.csv'])).drop(columns=['Unnamed: 0'])
+    except FileNotFoundError:
+        stmDf = pd.DataFrame()
+        #No stimuli was given. Fill with empty DataFrame
+
+    uvrexperiment = unityVRexperiment(metadata=metadat,posDf=posDf,ftDf=ftDf,nidDf=nidDf,stmDf=stmDf,
+                                      objDf=objDf,texDf=texDf,shapeDf=shapeDf,timeDf=timeDf,vidDf=vidDf)
 
     return uvrexperiment
 
@@ -280,6 +293,26 @@ def posDfFromLog(dat):
         return pd.DataFrame()
 
 
+def stmDfFromLog(dat):
+    # get info about camera position in vr
+    matching = [s for s in dat if "azimuthLog" in s]
+    entries = [None]*len(matching)
+    for entry, match in enumerate(matching):
+        framedat = {'frame': match['frame'],
+                    'time': match['timeSecs'],
+                    'azimuth': match['azimuthLog'],
+                    'elevation': match['elevationLog'],
+                    'round': match['roundLog'],
+                    'rotSpeed': match['rotSpeedLog'],
+                    }
+        entries[entry] = pd.Series(framedat).to_frame().T
+
+    if len(entries) > 0:
+        return pd.concat(entries,ignore_index = True)
+    else:
+        return pd.DataFrame()
+
+
 def ftDfFromLog(dat):
     # get fictrac data
     matching = [s for s in dat if "ficTracDeltaRotationVectorLab" in s]
@@ -317,7 +350,9 @@ def dtDfFromLog(dat):
 
 def pdDfFromLog(dat, computePDtrace):
     # get NiDaq signal
-    matching = [s for s in dat if "tracePD" in s]
+    # matching = [s for s in dat if "tracePD" in s]
+    # Replaced "tracePD" as the match for "imgFrameTrigger" for testing purposes
+    matching = [s for s in dat if "imgFrameTrigger" in s]
     entries = [None]*len(matching)
     for entry, match in enumerate(matching):
         if computePDtrace:

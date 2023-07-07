@@ -1,0 +1,14 @@
+{
+    "expid": "testExp",
+    "experiment": "test experiment",
+    "genotype": "testGenotype",
+    "sex": "NA",
+    "flyid": "NA",
+    "trial": "trial5-28-47",
+    "date": "2023-05-26",
+    "time": "15-28-47",
+    "ballRad": 0.04699999839067459,
+    "setFrameRate": 60,
+    "notes": "NA",
+    "angle_convention": "right-handed"
+}
