@@ -8,14 +8,22 @@ import json
 from unityvr.preproc import logproc
 from unityvr.analysis import utils as autils
 
-def findImgFrameTimes(uvrDat,imgMetadat):
+def findImgFrameTimes(uvrDat,imgMetadat=None, fpv=None):
+    # frames per volume can either be supplied through the scanimage metadata
+    # or by manually specifying the fpv
+    if (imgMetadat is not None) and (imgMetadat.get('fpv') is not None):
+        frames_per_vol = imgMetadat['fpv']
+    elif fpv is not None:
+        frames_per_vol = fpv
+    else:
+        assert (imgMetadat.get('fpv') is not None) or (fpv is not None)
 
     imgInd = np.where(np.diff(uvrDat.nidDf.imgfsig.values)>3)[0]
 
     imgFrame = uvrDat.nidDf.frame.values[imgInd].astype('int')
 
     #take only every x frame as start of volume
-    volFrame = imgFrame[0::imgMetadat['fpv']]
+    volFrame = imgFrame[0::frames_per_vol]
     volFramePos = np.where(np.in1d(uvrDat.posDf.frame.values,volFrame, ))[0]
 
     return imgInd, volFramePos
