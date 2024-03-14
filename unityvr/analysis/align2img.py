@@ -29,9 +29,12 @@ def findImgFrameTimes(uvrDat,imgMetadat=None, fpv=None):
     return imgInd, volFramePos
 
 
-def debugAlignmentPlots(uvrDat,imgMetadat, imgInd, volFramePos):
+def debugAlignmentPlots(uvrDat,imgMetadat, imgInd, volFramePos, fpv=None):
     # figure to make some sanity check plots
     fig, axs = plt.subplots(1,2, figsize=(12,4))
+
+    if fpv is None:
+        fpv = imgMetadat['fpv']
 
     # sanity check if frame starts are dettected corrctly from analog signal
     axs[0].plot(np.arange(0,len(uvrDat.nidDf.imgfsig.values)), uvrDat.nidDf.imgfsig, '.-')
@@ -43,11 +46,11 @@ def debugAlignmentPlots(uvrDat,imgMetadat, imgInd, volFramePos):
 
     # sanity check to see if time values align
     axs[1].plot(uvrDat.posDf.time.values[volFramePos],
-             uvrDat.nidDf.timeinterp.values[imgInd[0::imgMetadat['fpv']]].astype('int') )
+             uvrDat.nidDf.timeinterp.values[imgInd[0::fpv]].astype('int') )
     axs[1].plot(uvrDat.posDf.time.values[volFramePos],uvrDat.posDf.time.values[volFramePos],'r')
     axs[1].axis('equal')
     axs[1].set_xlim(0,round(uvrDat.posDf.time.values[volFramePos][-1])+1)
-    axs[1].set_ylim(0,round(uvrDat.nidDf.timeinterp.values[imgInd[0::imgMetadat['fpv']]].astype('int')[-1])+1)
+    axs[1].set_ylim(0,round(uvrDat.nidDf.timeinterp.values[imgInd[0::fpv]].astype('int')[-1])+1)
     axs[1].set_title('Sanity check 2:\nCheck that time values align well')
     vutils.myAxisTheme(axs[1])
 
